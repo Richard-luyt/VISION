@@ -38,16 +38,15 @@ print(f"we found object with ID=0 in a total of {len(target)} frames")
 
 if len(target) > 0:
     sample = target.iloc[10]
-    print("\n--- 抽查第 10 个样本的数据 ---")
-    print(f"Frame (帧号): {int(sample['frame'])}")
-    print(f"Type  (类型): {sample['type']}")
+    print(f"Frame: {int(sample['frame'])}")
+    print(f"Type: {sample['type']}")
     print(
-        f"BBox  (坐标): [{sample['bbox_left']}, {sample['bbox_top']}, {sample['bbox_right']}, {sample['bbox_bottom']}]"
+        f"BBox: [{sample['bbox_left']}, {sample['bbox_top']}, {sample['bbox_right']}, {sample['bbox_bottom']}]"
     )
 
     width = sample["bbox_right"] - sample["bbox_left"]
     height = sample["bbox_bottom"] - sample["bbox_top"]
-    print(f"Size  (尺寸): 宽 {width:.1f} x 高 {height:.1f}")
+    print(f"Size  width {width:.1f} x height {height:.1f}")
 else:
     print("We can't find car with ID = 0")
 
@@ -92,11 +91,10 @@ if os.path.exists(img_path):
 
     plt.figure(figsize=(10, 5))
 
-    # 左边画原图 + 红框
     plt.subplot(1, 2, 1)
     plt.title(f"Original Frame {frame_num}")
     plt.imshow(full_img)
-    # 在原图上画个红框看看准不准
+
     rect = plt.Rectangle((l, t), r - l, b - t, fill=False, edgecolor="red", linewidth=2)
     plt.gca().add_patch(rect)
 
@@ -105,11 +103,8 @@ if os.path.exists(img_path):
     )
     plt.gca().add_patch(rect2)
 
-    # 右边画我们要喂给 AI 的图
     plt.subplot(1, 2, 2)
     plt.title("Network Input (224x224)")
     plt.imshow(final_input)
 
-    plt.show()  # 这会弹出一个窗口
-
-    print("🎉 可视化成功！右边的图就是将来喂给模型的数据。")
+    plt.show()

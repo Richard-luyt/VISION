@@ -59,6 +59,8 @@ def evaluate_dataset_iou(model, loader, device):
             batch_size = preds.size(0)
 
             for i in range(batch_size):
+                # print(preds[i])
+                # print(targets[i])
                 p = preds[i].cpu().numpy()
                 t = targets[i].cpu().numpy()
 
