@@ -8,14 +8,39 @@ import matplotlib.patches as patches
 import random
 from PIL import Image
 import numpy as np
+from torch import nn
 from model import FusionModel2
 from dataset import KittiDataset
 
+from torch.utils.data import DataLoader, random_split
 
+Batch_size = 8
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MODEL_PATH = "checkpoints/model2_epoch_4.pth"
+MODEL_PATH = "checkpoints/model2_epoch_20.pth"
 DATA_ROOT = "./data"
-SEQUENCES = ["0018"]
+SEQUENCE = [
+    "0000",
+    "0001",
+    "0002",
+    "0003",
+    "0004",
+    "0005",
+    "0006",
+    "0007",
+    "0008",
+    "0009",
+    "0010",
+    "0011",
+    "0012",
+    "0013",
+    "0014",
+    "0015",
+    "0016",
+    "0017",
+    "0018",
+    "0019",
+    "0020",
+]
 
 
 def visualize_global():
@@ -24,15 +49,40 @@ def visualize_global():
     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     model.eval()
 
-    dataset = KittiDataset(root_dir=DATA_ROOT, sequences=SEQUENCES)
-    print(
-        f"There are a total of {len(dataset)} samples and we pick 10 of them randomly"
+    full_dataset = KittiDataset(root_dir=DATA_ROOT, sequences=SEQUENCE)
+    train_size = int(0.8 * len(full_dataset))
+    val_size = int(0.1 * len(full_dataset))
+    test_size = len(full_dataset) - train_size - val_size
+    print(f"the test_size is {test_size}")
+    train_dataset, val_dataset, test_dataset = random_split(
+        full_dataset,
+        [train_size, val_size, test_size],
+        generator=torch.Generator().manual_seed(42),
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=Batch_size,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True,
+        persistent_workers=False,
     )
 
+    Total_test_L = 0
+    loss = nn.MSELoss()
+    with torch.no_grad():
+        for input, target in test_loader:
+            input = input.to(DEVICE)
+            target = target.to(DEVICE)
+            pred = model(input)
+            L = loss(pred, target)
+            Total_test_L += L.item()
+    print(f"The avg loss of the datasets is {Total_test_L / len(test_loader)}")
+
     for _ in range(10):
-        idx = random.randint(0, len(dataset) - 1)
-        sample_info = dataset.samples[idx]
-        input_seq_tensor, target_label = dataset[idx]
+        idx = random.randint(0, len(test_dataset) - 1)
+        sample_info = test_dataset.samples[idx]
+        input_seq_tensor, target_label = test_dataset[idx]
         input_tensor = input_seq_tensor.unsqueeze(0).to(DEVICE)
 
         with torch.no_grad():
