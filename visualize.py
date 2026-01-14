@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, random_split
 
 Batch_size = 8
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MODEL_PATH = "checkpoints/model2_epoch_20.pth"
+MODEL_PATH = "checkpoints/model2_epoch_19.pth"
 DATA_ROOT = "./data"
 SEQUENCE = [
     "0000",
@@ -41,6 +41,82 @@ SEQUENCE = [
     "0019",
     "0020",
 ]
+
+
+def evaluate_dataset_iou(model, loader, device):
+    model.eval()
+    total_iou = 0.0
+    total_count = 0
+    print("_________Start IoU Evaluation__________")
+
+    with torch.no_grad():
+        for j, (inputs, targets) in enumerate(loader):
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+
+            preds = model(inputs)
+
+            batch_size = preds.size(0)
+
+            for i in range(batch_size):
+                p = preds[i].cpu().numpy()
+                t = targets[i].cpu().numpy()
+
+                p_x1, p_y1 = p[0], p[1]
+                p_x2, p_y2 = p[0] + p[2], p[1] + p[3]
+
+                t_x1, t_y1 = t[0], t[1]
+                t_x2, t_y2 = t[0] + t[2], t[1] + t[3]
+
+                x_inter_1 = max(p_x1, t_x1)
+                y_inter_1 = max(p_y1, t_y1)
+                x_inter_2 = min(p_x2, t_x2)
+                y_inter_2 = min(p_y2, t_y2)
+
+                inter_w = max(0, x_inter_2 - x_inter_1)
+                inter_h = max(0, y_inter_2 - y_inter_1)
+                inter_area = inter_w * inter_h
+
+                p_area = p[2] * p[3]
+                t_area = t[2] * t[3]
+                union_area = p_area + t_area - inter_area
+
+                iou = inter_area / (union_area + 1e-6)
+
+                total_iou += iou
+                total_count += 1
+
+            if j % 10 == 0:
+                print(f"-----Evaluated Batch {j}-----")
+
+    avg_iou = total_iou / total_count
+    print(f"Total Samples: {total_count}")
+    print(f"Average IoU  : {avg_iou:.4f}")
+    print("_________________________")
+    return avg_iou
+
+
+def calculate_iou(boxPred, boxGT):
+    p_x1 = boxPred[0]
+    p_y1 = boxPred[1]
+    p_x2 = boxPred[0] + boxPred[2]
+    p_y2 = boxPred[1] + boxPred[3]
+
+    g_x1, g_y1, g_x2, g_y2 = boxGT
+
+    xA = max(p_x1, g_x1)
+    yA = max(p_y1, g_y1)
+    xB = min(p_x2, g_x2)
+    yB = min(p_y2, g_y2)
+
+    interArea = max(0, xB - xA) * max(0, yB - yA)
+
+    p_area = boxPred[2] * boxPred[3]
+    g_area = (g_x2 - g_x1) * (g_y2 - g_y1)
+
+    unionArea = p_area + g_area - interArea
+    iou = interArea / float(unionArea + 1e-6)
+    return iou
 
 
 def visualize_global():
@@ -69,19 +145,23 @@ def visualize_global():
     )
 
     Total_test_L = 0
-    loss = nn.MSELoss()
-    with torch.no_grad():
-        for input, target in test_loader:
-            input = input.to(DEVICE)
-            target = target.to(DEVICE)
-            pred = model(input)
-            L = loss(pred, target)
-            Total_test_L += L.item()
-    print(f"The avg loss of the datasets is {Total_test_L / len(test_loader)}")
+    # loss = nn.L1Loss()
+    # with torch.no_grad():
+    #     for input, target in test_loader:
+    #         input = input.to(DEVICE)
+    #         target = target.to(DEVICE)
+    #         pred = model(input)
+    #         L = loss(pred, target)
+    #         Total_test_L += L.item()
+    # print(f"The avg loss of the datasets is {Total_test_L / len(test_loader)}")
 
-    for _ in range(10):
+    evaluate_dataset_iou(model, test_loader, DEVICE)
+
+    for _ in range(20):
         idx = random.randint(0, len(test_dataset) - 1)
-        sample_info = test_dataset.samples[idx]
+        real_idx = test_dataset.indices[idx]
+        sample_info = test_dataset.dataset.samples[real_idx]
+        # sample_info = test_dataset.samples[idx]
         input_seq_tensor, target_label = test_dataset[idx]
         input_tensor = input_seq_tensor.unsqueeze(0).to(DEVICE)
 
@@ -134,6 +214,8 @@ def visualize_global():
             pred_w,
             pred_h,
         ]
+        iou = calculate_iou(pred_final_box, gt_box)
+        print(f"Frame {frame_id} IoU: {iou:.4f}")
 
         fig, ax = plt.subplots(1, figsize=(12, 4))
         ax.imshow(full_image)

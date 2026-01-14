@@ -86,13 +86,13 @@ def train():
     loss = nn.L1Loss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    resume_path = "checkpoints/model2_epoch_30.pth"
+    resume_path = "checkpoints/model2_epoch_19.pth"
     # resume_path = None
     S = 0
     if os.path.exists(resume_path):
         state_dict = torch.load(resume_path, map_location=device)
         model.load_state_dict(state_dict)
-        S = 11
+        S = 19
         print(f"Start From Epoch read from {resume_path}")
     else:
         print("Train from start")
