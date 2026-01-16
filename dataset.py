@@ -107,6 +107,8 @@ class KittiDataset(Dataset):
         current_scene_cy = None
 
         for i, info in enumerate(item["inputs"]):
+            # int(info['frame_id']) is neccessary since info['frame_id'] is a string
+            # os.path.join takes in STRINGS
             img_path = os.path.join(info["img_dir"], f"{int(info['frame_id']):06d}.png")
             I = Image.open(img_path).convert("RGB")
 
@@ -149,6 +151,11 @@ class KittiDataset(Dataset):
         tgt_w_real = tgt_box[2] - tgt_box[0]
         tgt_h_real = tgt_box[3] - tgt_box[1]
 
+        # the reason for (tgt_cx - current_scene_cx) is:
+        # 10 -> 11 is 1.1
+        # 1000 -> 1001 is 1.001
+        # model will be super sensitive to car's position
+        # causing inconsistency
         label = torch.tensor(
             [
                 (tgt_cx - current_scene_cx) / current_scene_w,
@@ -159,6 +166,7 @@ class KittiDataset(Dataset):
             dtype=torch.float32,
         )
 
+        # remember that dataset only returns tensor
         return input_seq, label
 
 

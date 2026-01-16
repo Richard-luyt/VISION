@@ -42,12 +42,14 @@ class FusionModel2(nn.Module):
         resnet = models.resnet18(weights="DEFAULT")
         self.backbone = nn.Sequential(*list(resnet.children())[:-2])
         self.spatial_pool = nn.AdaptiveAvgPool2d((2, 2))
+        # instead of using AVGpool -> 1*1 we uses a Avgpool -> 2*2
+        # because we have to maintain the car's position in the cropped graph
+        # And also we have to lower our parameter usage
         self.intersect = nn.Sequential(
             nn.Linear(2048, 256), nn.ReLU(), nn.Dropout(p=0.3)
         )
-        hidden_dim = 256
         self.LSTM = nn.LSTM(
-            input_size=hidden_dim, hidden_size=256, num_layers=2, batch_first=True
+            input_size=256, hidden_size=256, num_layers=2, batch_first=True
         )
         self.regressor = nn.Linear(256, 4)
 
@@ -68,5 +70,8 @@ class FusionModel2(nn.Module):
         output, _ = self.LSTM(X)
         # B T 128
         final = output[:, -1, :]
+        # output[B,T,H]
+        # _ [2, B, H]
+        # use output for convinience
         predict = self.regressor(final)
         return predict
