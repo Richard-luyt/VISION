@@ -20,4 +20,5 @@ models/
 venv/
 env/
 
+*.sh
 utilit_tools/
