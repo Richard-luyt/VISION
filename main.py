@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from typing import List
 from model import FusionModel2
 from typing import Annotated
+import asyncio
 
 import torch
 from PIL import Image
@@ -23,6 +24,11 @@ transform = transforms.Compose([transforms.Resize((224, 224)),
 model = FusionModel2().to(DEVICE)
 model.load_state_dict(torch.load("checkpoints/model2_epoch_20.pth", map_location=DEVICE))
 model.eval()
+
+def run_inference (model, input_batch):
+    with torch.no_grad():
+        predict = model(input_batch)
+        return predict.cpu().tolist()
 
 @app.get("/")
 def home():
@@ -60,8 +66,7 @@ async def perdict_sequence(files: Annotated[list[UploadFile], File(...)],
     
     input_batch = torch.stack(input_tensor).unsqueeze(0).to(DEVICE)
     
-    with torch.no_grad():
-        predict = model(input_batch)
+    predict_list = await asyncio.to_thread(run_inference, model, input_batch)
     
     return {"status" : "success",
-            "predict" : predict.cpu().tolist()}
+            "predict" : predict_list}
